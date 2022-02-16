@@ -6,8 +6,16 @@
   "repository": "ssh://git@gitea.robgreener.com:222/ragreener1/ue-scraper.ts.git",
   "author": "Robert Greener <rob@robgreener.com>",
   "license": "GPL-3.0-or-later",
+  "scripts": {
+    "build": "tsc",
+    "loadData": "node ./bin/readLSOAData.js"
+  },
   "dependencies": {
     "@types/node": "^17.0.18",
+    "@types/pg": "^8.6.4",
+    "@types/pg-format": "^1.0.2",
+    "pg": "^8.7.3",
+    "pg-format": "^1.0.4",
     "typescript": "^4.5.5"
   },
   "devDependencies": {
