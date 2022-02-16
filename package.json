@@ -1,0 +1,16 @@
+{
+  "name": "ue-scraper.ts",
+  "version": "0.1.0",
+  "description": "Uber Eats Scraper",
+  "main": "index.js",
+  "repository": "ssh://git@gitea.robgreener.com:222/ragreener1/ue-scraper.ts.git",
+  "author": "Robert Greener <rob@robgreener.com>",
+  "license": "GPL-3.0-or-later",
+  "dependencies": {
+    "@types/node": "^17.0.18",
+    "typescript": "^4.5.5"
+  },
+  "devDependencies": {
+    "ts-node": "^10.5.0"
+  }
+}
