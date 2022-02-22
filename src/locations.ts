@@ -110,7 +110,7 @@ export async function processFeeds(datas: Array<Data>, lsoa11cd: string, client:
       );
     }
 
-    return client.query("UPDATE locations SET visited = TRUE WHERE lsoa11cd = $1", [lsoa11cd]);
+    return client.query("UPDATE locations SET visited_time = $1 WHERE lsoa11cd = $2", [new Date(), lsoa11cd]);
   } finally {
     client.release();
   }
@@ -133,7 +133,7 @@ const pool = new Pool({
   const client = await pool.connect();
   try {
     const res = await client.query(
-      "SELECT lsoa11cd, longitude, latitude FROM locations WHERE visited = FALSE"
+      "SELECT lsoa11cd, longitude, latitude FROM locations WHERE visited_time IS NULL"
     );
 
     const promises = res.rows.map(

@@ -7,8 +7,7 @@ const elements = lsoaJson.features.map(f => {
     f.geometry.coordinates[0],
     f.geometry.coordinates[1],
     f.properties.lsoa11cd,
-    f.properties.lsoa11nm,
-    false
+    f.properties.lsoa11nm
   ]
 })
 
@@ -23,7 +22,7 @@ const client = new Client({
 (async () => {
   await client.connect();
   await client.query(
-    format('INSERT INTO locations(longitude, latitude, lsoa11cd, lsoa11nm, visited) VALUES %L', elements)
+    format('INSERT INTO locations(longitude, latitude, lsoa11cd, lsoa11nm) VALUES %L', elements)
   );
 
   await client.end();
