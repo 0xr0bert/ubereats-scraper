@@ -1,3 +1,5 @@
+import axios from 'axios'
+import { GET_FEED_V1_URL } from './config';
 
 export interface Location {
   lsoa11cd: string;
@@ -5,12 +7,73 @@ export interface Location {
   latitude: number
 }
 
-export async function getRestaurants(location: Location, offset: number) {
+export async function getFeed(location: Location, offset: number) {
+  const data = {
+    pageInfo: {
+      offset: offset,
+      pageSize: 80
+    }
+  };
+
+  const loc = {
+    latitude: location.latitude,
+    longitude: location.longitude
+  };
+
+  const locStr = JSON.stringify(loc);
+  const cookieStr = `uev2.loc=${locStr}`;
+
+  const res = await axios.post(
+    GET_FEED_V1_URL,
+    data,
+    {
+      headers: {
+        cookie: cookieStr,
+        "x-csrf-token": "x",
+        "content-type": "application/json",
+        "accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Android 4.4; Tablet; rv:41.0) Gecko/41.0 Firefox/41.0"
+      }
+    }
+  )
+
+  return res.data;
 }
+
+export async function getFeeds(location: Location): Promise<Array<Data>> {
+  let status = "success";
+  let hasMore = true;
+  let offset = 0;
+  let datas: Array<Data> = [];
+
+  while (status == "success" && hasMore) {
+    const resp = await getFeed(location, offset);
+    status = resp.status;
+    if (status == "success") {
+      const data = resp.data as Data;
+      hasMore = data.meta.hasMore;
+      offset = data.meta.offset;
+      datas.push(data);
+    }
+  }
+
+  return datas;
+}
+
+
+export async function processData(data: Data) {
+}
+
+(async () => {
+  const res = await getFeeds({ lsoa11cd: "x", latitude: 51.528952, longitude: -0.081746 });
+  console.log(res);
+})();
+
+// Below are the response interfaces
 
 export interface Root {
   status: string
-  data: Data
+  data?: Data
 }
 
 export interface Data {

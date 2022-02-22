@@ -1,0 +1,1 @@
+export const GET_FEED_V1_URL = "https://www.ubereats.com/api/getFeedV1?localecode=gb";

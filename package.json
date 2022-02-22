@@ -8,12 +8,14 @@
   "license": "GPL-3.0-or-later",
   "scripts": {
     "build": "tsc",
-    "loadData": "node ./bin/readLSOAData.js"
+    "loadData": "node ./bin/readLSOAData.js",
+    "locationsDev": "ts-node ./src/locations.ts"
   },
   "dependencies": {
     "@types/node": "^17.0.18",
     "@types/pg": "^8.6.4",
     "@types/pg-format": "^1.0.2",
+    "axios": "^0.26.0",
     "pg": "^8.7.3",
     "pg-format": "^1.0.4",
     "typescript": "^4.5.5"
