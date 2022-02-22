@@ -15,13 +15,14 @@ const elements = lsoaJson.features.map(f => {
 const client = new Client({
   user: "postgres",
   host: "localhost",
+  port: 15432,
   password: "postgres",
   database: "postgres"
 });
 
 (async () => {
   await client.connect();
-  const res = await client.query(
+  await client.query(
     format('INSERT INTO locations(longitude, latitude, lsoa11cd, lsoa11nm, visited) VALUES %L', elements)
   );
 

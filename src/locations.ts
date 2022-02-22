@@ -1,11 +1,20 @@
 import axios from 'axios'
-import { GET_FEED_V1_URL } from './config';
+import Bottleneck from 'bottleneck';
+import { Pool, PoolClient } from 'pg';
+import format from 'pg-format';
+import { GET_FEED_V1_URL, MAX_CONCURRENT, MIN_TIME } from './config';
 
 export interface Location {
   lsoa11cd: string;
   longitude: number;
   latitude: number
 }
+
+const limiter = new Bottleneck({
+  minTime: MIN_TIME,
+  maxConcurrent: MAX_CONCURRENT
+});
+const getFeedW = limiter.wrap(getFeed);
 
 export async function getFeed(location: Location, offset: number) {
   const data = {
@@ -47,7 +56,7 @@ export async function getFeeds(location: Location): Promise<Array<Data>> {
   let datas: Array<Data> = [];
 
   while (status == "success" && hasMore) {
-    const resp = await getFeed(location, offset);
+    const resp = await getFeedW(location, offset);
     status = resp.status;
     if (status == "success") {
       const data = resp.data as Data;
@@ -60,13 +69,80 @@ export async function getFeeds(location: Location): Promise<Array<Data>> {
   return datas;
 }
 
+export async function processFeeds(datas: Array<Data>, lsoa11cd: string, client: PoolClient) {
+  try {
+    let uuids: Array<string> = datas.map(
+      d => d.feedItems
+    ).flat().filter(f => f.carousel !== undefined).map(
+      f => f.carousel?.stores
+    ).flat().map(
+      s => s?.storeUuid
+    ).filter(s => s !== undefined).map(
+      s => s as string
+    )
 
-export async function processData(data: Data) {
+    uuids.push(
+      ...datas.map(
+        d => d.feedItems
+      ).flat().filter(f => f.stores !== undefined).map(
+        f => f.stores
+      ).flat().map(
+        s => s?.storeUuid
+      ).filter(s => s !== undefined).map(
+        s => s as string
+      )
+    )
+
+    uuids.push(
+      ...datas.map(
+        d => d.feedItems
+      ).flat().filter(f => f.store !== undefined).map(
+        f => f.store?.storeUuid
+      ).filter(s => s !== undefined).map(
+        s => s as string
+      )
+    )
+
+    const insertData = uuids.map(u => [lsoa11cd, u]);
+    if (insertData.length) {
+      await client.query(
+        format('INSERT INTO locations_to_restaurants(lsoa11cd, restaurant_id) VALUES %L ON CONFLICT DO NOTHING', insertData)
+      );
+    }
+
+    return client.query("UPDATE locations SET visited = TRUE WHERE lsoa11cd = $1", [lsoa11cd]);
+  } finally {
+    client.release();
+  }
 }
 
+export async function getAndProcessFeed(location: Location, client: PoolClient): Promise<any> {
+  const res = await getFeeds(location);
+  return processFeeds(res, location.lsoa11cd, client);
+}
+
+const pool = new Pool({
+  user: "postgres",
+  host: "localhost",
+  port: 15432,
+  password: "postgres",
+  database: "postgres"
+});
+
 (async () => {
-  const res = await getFeeds({ lsoa11cd: "x", latitude: 51.528952, longitude: -0.081746 });
-  console.log(res);
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      "SELECT lsoa11cd, longitude, latitude FROM locations WHERE visited = FALSE"
+    );
+
+    const promises = res.rows.map(
+      async row => getAndProcessFeed(row, await pool.connect())
+    );
+    await Promise.all(promises);
+  } finally {
+    client.release();
+  }
 })();
 
 // Below are the response interfaces
