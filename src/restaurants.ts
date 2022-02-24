@@ -1,34 +1,288 @@
 import axios from "axios";
+import { PoolClient } from "pg";
 import { GET_STORE_V1_URL } from "./config";
-
-// url = "https://www.ubereats.com/api/getStoreV1?localecode=gb"
-// data = {
-//     "storeUuid": "a13f9e1b-0fed-454f-a656-d1ad072ca8e0"
-// }
-// r = requests.post(url, headers=headers, json=data)
-// r
-
+import { v4 as uuidv4 } from 'uuid';
+import format from "pg-format";
 /**
  * Gets the store
  */
-export async function getStore(uuid: string) {
-    const data = {
-        "storeUuid": uuid,
-    };
+export async function getStore(uuid: string): Promise<Root> {
+  const data = {
+    "storeUuid": uuid,
+  };
 
-    const res = await axios.post(
-        GET_STORE_V1_URL,
-        data,
-        {
-            headers: {
-                "x-csrf-token": "x",
-                "content-type": "application/json",
-                "accept": "application/json",
-                "User-Agent": "Mozilla/5.0 (Android 4.4; Tablet; rv:41.0) Gecko/41.0 Firefox/41.0"
-            }
-        }
+  const res = await axios.post(
+    GET_STORE_V1_URL,
+    data,
+    {
+      headers: {
+        "x-csrf-token": "x",
+        "content-type": "application/json",
+        "accept": "application/json",
+        "User-Agent": "Mozilla/5.0 (Android 4.4; Tablet; rv:41.0) Gecko/41.0 Firefox/41.0"
+      }
+    }
+  )
+
+  return res.data;
+}
+
+export async function writeStore(data: Data, lsoa11cd: string, client: PoolClient) {
+  try {
+    await client.query(
+      `UPDATE restaurants SET
+        visited_time = $1,
+        title = $2,
+        slug = $3,
+        citySlug = $4,
+        location__address = $5,
+        location__street_address = $6,
+        location__city = $7,
+        location__country = $8,
+        location__region = $9,
+        location__latitude = $10,
+        location__longitude = $11,
+        location__geo__city = $12,
+        location__geo__country = $13,
+        location__geo__neighborhood = $14,
+        location__geo__region = $15,
+        location__location_type = $16,
+        is_delivery_third_party = $17,
+        is_delivery_over_the_top = $18,
+        rating__rating_value = $19,
+        rating__review_count = $20,
+        sanitized_title = $21,
+        city_id = $22,
+        is_delivery_bandwagon = $23,
+        menu_uuid = $24,
+        menu_display_type = $25,
+        has_multiple_menus = $26,
+        parent_chain__uuid = $27,
+        parent_chain_name = $28,
+        WHERE id = $29
+      `,
+      [
+        new Date(),
+        data.title,
+        data.slug,
+        data.citySlug,
+        data.location?.address,
+        data.location?.streetAddress,
+        data.location?.city,
+        data.location?.country,
+        data.location?.region,
+        data.location?.latitude,
+        data.location?.longitude,
+        data.location?.geo?.city,
+        data.location?.geo?.country,
+        data.location?.geo?.neighborhood,
+        data.location?.geo?.region,
+        data.location?.locationType,
+        data.isDeliveryThirdParty,
+        data.isDeliveryOverTheTop,
+        data.rating?.ratingValue,
+        data.rating?.reviewCount,
+        data.sanitizedTitle,
+        data.cityId,
+        data.isDeliveryBandwagon,
+        data.menuUUID,
+        data.menuDisplayType,
+        data.hasMultipleMenus,
+        data.parentChain?.uuid,
+        data.parentChain?.name
+      ]
     )
 
-    return res.data;
+    const hours = data.hours;
 
+    if (hours !== undefined) {
+      const promises = (hours as [Hours]).map(async h => {
+        const uuid = uuidv4();
+        await client.query(
+          `INSERT INTO restaurant_to_hours(id, restaurant_id, day_range)
+        VALUES ($1, $2, $3)
+        `, [uuid, data.uuid, h.dayRange]
+        );
+
+        const sectionHours = h.sectionHours;
+
+        if (sectionHours !== undefined) {
+          const promises = (sectionHours as [SectionHours]).map(
+            async s => {
+              const uuid2 = uuidv4;
+              return client.query(`
+            INSERT INTO restaurant_hours_to_section_hours
+              (id, restaurant_id, restaurant_to_hours_id, start_time, end_time, section_title)
+              VALUES ($1, $2, $3, $4, $5, $6)
+          `, [uuid2, data.uuid, uuid, s.startTime, s.endTime, s.sectionTitle]);
+            }
+          );
+          await Promise.all(promises);
+        };
+      });
+
+      const categoryInsertData = data.categories?.map(c => [data.uuid, c]);
+
+      if (categoryInsertData !== undefined) {
+        await client.query(
+          format(`INSERT INTO restaurant_to_categories(restaurant_id, category) VALUES %L ON CONFLICT DO NOTHING`,
+            (categoryInsertData as [[string]])
+          ));
+      }
+
+      if (data.supportedDiningModes !== undefined) {
+        const modes = data.supportedDiningModes as [SupportedDiningMode];
+
+        const insertData = modes.map(m => [uuidv4(), data.uuid, m.mode, m.title, m.isAvailable, m.isSelected]);
+
+        await client.query(
+          format(`INSERT INTO restaurant_to_supported_dining_modes(
+            id, restaurant_id, mode, title, isAvailable, isSelected
+          ) VALUES %L`, insertData)
+        );
+      }
+
+      await Promise.all(promises);
+    }
+  } finally {
+    client.release();
+  }
+}
+
+// Below are the definitions
+
+export interface Root {
+  status: string,
+  data?: Data,
+}
+
+export interface Data {
+  title?: string,
+  uuid: string,
+  slug?: string,
+  citySlug?: string,
+  location?: Location,
+  isDeliveryThirdParty?: boolean,
+  isDeliveryOverTheTop?: boolean,
+  rating?: Rating,
+  hours?: [Hours],
+  categories?: [string],
+  modalityInfo?: ModalityInfo,
+  sections?: [Section],
+  sanitizedTitle?: string,
+  cityId?: number,
+  isDeliveryBandwagon?: boolean,
+  cuisineList?: [string],
+  supportedDiningModes?: [SupportedDiningMode],
+  menuUUID?: string,
+  menuDisplayType?: string,
+  hasMultipleMenus?: boolean,
+  parentChain?: ParentChain,
+  catalogSectionsMap?: CatalogSectionsMap,
+}
+
+export interface Location {
+  address?: string,
+  streetAddress?: string,
+  city?: string,
+  country?: string,
+  postalCode?: string,
+  region?: string,
+  latitude?: string,
+  longitude?: string,
+  geo?: Geo,
+  locationType: string,
+}
+
+export interface Geo {
+  city?: string,
+  country?: string,
+  neighborhood?: string,
+  region?: string
+}
+
+export interface Rating {
+  ratingValue?: number,
+  reviewCount?: string,
+}
+
+export interface Hours {
+  dayRange?: string,
+  sectionHours?: [SectionHours],
+}
+
+export interface SectionHours {
+  startTime?: number,
+  endTime?: number,
+  sectionTitle?: string,
+}
+
+export interface ModalityInfo {
+  modalityOptions?: [ModalityOption]
+}
+
+export interface ModalityOption {
+  title?: string,
+  subtitle?: string,
+  isDisabled?: true
+}
+
+export interface Section {
+  title?: string,
+  subtitle?: string,
+  uuid?: string,
+  isTop?: boolean,
+  isOnSale?: boolean,
+  subsectionUuids: [string],
+}
+
+export interface SupportedDiningMode {
+  mode?: string,
+  title?: string,
+  isAvailable?: boolean,
+  isSelected?: boolean
+}
+
+export interface ParentChain {
+  uuid?: string,
+  name?: string
+}
+
+export interface CatalogSectionsMap {
+  [injavascriptdex: string]: [CatalogSectionsMapData],
+}
+
+export interface CatalogSectionsMapData {
+  type?: string,
+  catalogSectionUUID?: string
+}
+
+export interface Payload {
+  standardItemsPayload?: StandardItemsPayload,
+  type?: string,
+}
+
+export interface StandardItemsPayload {
+  title?: Title,
+  spanCount?: number,
+  sectionUUID?: string,
+  catalogItems?: [CatalogItem]
+}
+
+export interface Title {
+  text?: string,
+}
+
+export interface CatalogItem {
+  uuid?: string,
+  imageUrl?: string,
+  title?: string,
+  itemDescription?: string,
+  price: number,
+  spanCount: 1,
+  displayType: string,
+  isSoldOut: boolean,
+  hasCustomizations: true,
+  subsectionUuid: string,
+  isAvailable: boolean
 }
