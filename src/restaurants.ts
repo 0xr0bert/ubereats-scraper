@@ -1,8 +1,17 @@
 import axios from "axios";
-import { PoolClient } from "pg";
-import { GET_STORE_V1_URL } from "./config";
+import { Pool, PoolClient } from "pg";
+import { GET_STORE_V1_URL, MAX_CONCURRENT, MIN_TIME } from "./config";
 import { v4 as uuidv4 } from 'uuid';
 import format from "pg-format";
+import Bottleneck from "bottleneck";
+
+
+const limiter = new Bottleneck({
+  minTime: MIN_TIME,
+  maxConcurrent: MAX_CONCURRENT
+});
+const getStoreW = limiter.wrap(getStore)
+
 /**
  * Gets the store
  */
@@ -27,7 +36,7 @@ export async function getStore(uuid: string): Promise<Root> {
   return res.data;
 }
 
-export async function writeStore(data: Data, lsoa11cd: string, client: PoolClient) {
+export async function writeStore(data: Data, client: PoolClient) {
   try {
     await client.query(
       `UPDATE restaurants SET
@@ -58,7 +67,7 @@ export async function writeStore(data: Data, lsoa11cd: string, client: PoolClien
         menu_display_type = $25,
         has_multiple_menus = $26,
         parent_chain__uuid = $27,
-        parent_chain_name = $28,
+        parent_chain__name = $28
         WHERE id = $29
       `,
       [
@@ -89,7 +98,8 @@ export async function writeStore(data: Data, lsoa11cd: string, client: PoolClien
         data.menuDisplayType,
         data.hasMultipleMenus,
         data.parentChain?.uuid,
-        data.parentChain?.name
+        data.parentChain?.name,
+        data.uuid
       ]
     )
 
@@ -109,7 +119,7 @@ export async function writeStore(data: Data, lsoa11cd: string, client: PoolClien
         if (sectionHours !== undefined) {
           const promises = (sectionHours as [SectionHours]).map(
             async s => {
-              const uuid2 = uuidv4;
+              const uuid2 = uuidv4();
               return client.query(`
             INSERT INTO restaurant_hours_to_section_hours
               (id, restaurant_id, restaurant_to_hours_id, start_time, end_time, section_title)
@@ -121,33 +131,110 @@ export async function writeStore(data: Data, lsoa11cd: string, client: PoolClien
         };
       });
 
-      const categoryInsertData = data.categories?.map(c => [data.uuid, c]);
+      await Promise.all(promises);
+    }
 
-      if (categoryInsertData !== undefined) {
-        await client.query(
-          format(`INSERT INTO restaurant_to_categories(restaurant_id, category) VALUES %L ON CONFLICT DO NOTHING`,
-            (categoryInsertData as [[string]])
-          ));
-      }
+    const categoryInsertData = data.categories?.map(c => [data.uuid, c]);
 
-      if (data.supportedDiningModes !== undefined) {
-        const modes = data.supportedDiningModes as [SupportedDiningMode];
+    if (categoryInsertData !== undefined && categoryInsertData?.length > 0) {
+      await client.query(
+        format(`INSERT INTO restaurant_to_categories(restaurant_id, category) VALUES %L ON CONFLICT DO NOTHING`,
+          (categoryInsertData as [[string]])
+        ));
+    }
 
-        const insertData = modes.map(m => [uuidv4(), data.uuid, m.mode, m.title, m.isAvailable, m.isSelected]);
+    if (data.supportedDiningModes !== undefined) {
+      const modes = data.supportedDiningModes as [SupportedDiningMode];
 
-        await client.query(
-          format(`INSERT INTO restaurant_to_supported_dining_modes(
+      const insertData = modes.map(m => [uuidv4(), data.uuid, m.mode, m.title, m.isAvailable, m.isSelected]);
+
+      await client.query(
+        format(`INSERT INTO restaurant_to_supported_dining_modes(
             id, restaurant_id, mode, title, isAvailable, isSelected
           ) VALUES %L`, insertData)
-        );
-      }
+      );
+    }
 
-      await Promise.all(promises);
+    if (data.catalogSectionsMap !== undefined && data.catalogSectionsMap !== null) {
+      const catalogSectionsMap = data.catalogSectionsMap as CatalogSectionsMap;
+
+      for (const [_k, v] of Object.entries(catalogSectionsMap)) {
+        for (const catalogSectionsMapData of v) {
+          const payload = catalogSectionsMapData.payload?.standardItemsPayload;
+          if (payload !== undefined) {
+            const payload2 = payload as StandardItemsPayload;
+            await client.query(
+              "INSERT INTO menu_sections(id, restaurant_id, title) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+              [payload2.sectionUUID, data.uuid, payload2.title?.text]
+            );
+
+            const itemsInsertData = payload2.catalogItems?.map(item => [
+              item.uuid,
+              data.uuid,
+              payload2.sectionUUID,
+              item.title,
+              item.itemDescription,
+              item.price,
+              item.displayType,
+              item.isSoldOut,
+              item.hasCustomizations,
+              item.subsectionUuid,
+              item.isAvailable
+            ]);
+            if (itemsInsertData !== undefined && itemsInsertData?.length > 0) {
+              await client.query(format(
+                `INSERT INTO menu_items(
+                  id,
+                  restaurant_id,
+                  menu_section_id,
+                  name,
+                  description,
+                  price,
+                  display_type,
+                  is_sold_out,
+                  has_customizations,
+                  subsection_uuid,
+                  is_available
+                ) VALUES %L ON CONFLICT DO NOTHING`, itemsInsertData
+              ));
+            }
+          }
+        }
+      }
     }
   } finally {
     client.release();
   }
 }
+
+export async function getAndWriteStore(uuid: string, client: PoolClient) {
+  const data = await getStoreW(uuid);
+  if (data.status === "success" && data.data !== undefined) {
+    await writeStore(data.data, client);
+  }
+}
+
+const pool = new Pool({
+  user: "postgres",
+  host: "localhost",
+  password: "postgres",
+  database: "postgres",
+  port: 15432
+});
+
+(async () => {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      "SELECT id FROM restaurants WHERE visited_time IS NULL"
+    );
+
+    const promises = res.rows.map(async row => getAndWriteStore(row.id, await pool.connect()));
+    await Promise.all(promises);
+  } finally {
+    client.release();
+  }
+})();
 
 // Below are the definitions
 
@@ -254,7 +341,8 @@ export interface CatalogSectionsMap {
 
 export interface CatalogSectionsMapData {
   type?: string,
-  catalogSectionUUID?: string
+  catalogSectionUUID?: string,
+  payload?: Payload
 }
 
 export interface Payload {
@@ -282,7 +370,7 @@ export interface CatalogItem {
   spanCount: 1,
   displayType: string,
   isSoldOut: boolean,
-  hasCustomizations: true,
+  hasCustomizations: boolean,
   subsectionUuid: string,
   isAvailable: boolean
 }

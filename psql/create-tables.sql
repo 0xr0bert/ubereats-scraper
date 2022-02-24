@@ -78,16 +78,7 @@ create table if not exists menu_sections(
   id uuid primary key,
   restaurant_id uuid not null,
   title text,
-  subtitle text,
-  is_top boolean,
-  is_on_sale boolean,
   constraint fk_restaurant_id foreign key(restaurant_id) references restaurants(id)
-);
-create table if not exists menu_subsections_to_sections(
-  section_id uuid not null,
-  subsection_id uuid not null,
-  restaurant_id uuid not null,
-  primary key(section_id, subsection_Id, restaurant_id)
 );
 create table if not exists menu_items(
   id uuid primary key,
@@ -95,8 +86,12 @@ create table if not exists menu_items(
   menu_section_id uuid not null,
   name text,
   description text,
-  price int,
-  price_currency varchar(3),
+  price double precision,
+  display_type text,
+  is_sold_out boolean,
+  has_customizations boolean,
+  subsection_uuid uuid,
+  is_available boolean,
   constraint fk_restaurant_id foreign key(restaurant_id) references restaurants(id),
   constraint fk_menu_section_id foreign key(menu_section_id) references menu_sections(id)
 );

@@ -9,7 +9,9 @@
   "scripts": {
     "build": "tsc",
     "locationsDev": "ts-node ./src/locations.ts",
-    "locations": "node ./bin/locations.js"
+    "locations": "node ./bin/locations.js",
+    "restaurantsDev": "ts-node ./src/restaurants.ts",
+    "restaurants": "node ./bin/restaurants.js"
   },
   "dependencies": {
     "@types/node": "^17.0.18",
