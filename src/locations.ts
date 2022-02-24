@@ -5,7 +5,7 @@ import format from 'pg-format';
 import { GET_FEED_V1_URL, MAX_CONCURRENT, MIN_TIME } from './config';
 
 export interface Location {
-    lsoa11cd: string;
+    id: string;
     longitude: number;
     latitude: number
 }
@@ -69,7 +69,7 @@ export async function getFeeds(location: Location): Promise<Array<Data>> {
     return datas;
 }
 
-export async function processFeeds(datas: Array<Data>, lsoa11cd: string, client: PoolClient) {
+export async function processFeeds(datas: Array<Data>, id: string, client: PoolClient) {
     try {
         const uuids: Array<string> = datas.map(
             d => d.feedItems
@@ -103,14 +103,14 @@ export async function processFeeds(datas: Array<Data>, lsoa11cd: string, client:
             )
         )
 
-        const insertData = uuids.map(u => [lsoa11cd, u]);
+        const insertData = uuids.map(u => [id, u]);
         if (insertData.length) {
             await client.query(
-                format('INSERT INTO locations_to_restaurants(lsoa11cd, restaurant_id) VALUES %L ON CONFLICT DO NOTHING', insertData)
+                format('INSERT INTO locations_to_restaurants(location_id, restaurant_id) VALUES %L ON CONFLICT DO NOTHING', insertData)
             );
         }
 
-        return client.query("UPDATE locations SET visited_time = $1 WHERE lsoa11cd = $2", [new Date(), lsoa11cd]);
+        return client.query("UPDATE locations SET visited_time = $1 WHERE id = $2", [new Date(), id]);
     } finally {
         client.release();
     }
@@ -118,7 +118,7 @@ export async function processFeeds(datas: Array<Data>, lsoa11cd: string, client:
 
 export async function getAndProcessFeed(location: Location, client: PoolClient) {
     const res = await getFeeds(location);
-    return processFeeds(res, location.lsoa11cd, client);
+    return processFeeds(res, location.id, client);
 }
 
 const pool = new Pool({
@@ -133,7 +133,7 @@ const pool = new Pool({
     const client = await pool.connect();
     try {
         const res = await client.query(
-            "SELECT lsoa11cd, longitude, latitude FROM locations WHERE visited_time IS NULL"
+            "SELECT id, longitude, latitude FROM locations WHERE visited_time IS NULL"
         );
 
         const promises = res.rows.map(

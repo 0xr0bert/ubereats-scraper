@@ -1,14 +1,15 @@
 create table if not exists locations (
-  lsoa11cd varchar(10) primary key,
-  lsoa11nm text not null,
-  longitude double precision not null,
+  id varchar(10) primary key,
+  name text not null,
+  region text not null,
   latitude double precision not null,
+  longitude double precision not null,
   visited_time timestamptz
 );
 create table if not exists locations_to_restaurants(
-  lsoa11cd varchar(10) not null,
+  location_id varchar(10) not null,
   restaurant_id uuid not null,
-  primary key(lsoa11cd, restaurant_id)
+  primary key(location_id, restaurant_id)
 );
 create table if not exists restaurants(
   id uuid not null primary key,
@@ -40,7 +41,7 @@ create table if not exists restaurants(
   menu_display_type text,
   has_multiple_menus boolean,
   parent_chain__uuid uuid,
-  parent_chain__name text,
+  parent_chain__name text
 );
 create table if not exists restaurant_to_hours(
   id uuid primary key,

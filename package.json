@@ -8,7 +8,6 @@
   "license": "GPL-3.0-or-later",
   "scripts": {
     "build": "tsc",
-    "loadData": "node ./bin/readLSOAData.js",
     "locationsDev": "ts-node ./src/locations.ts",
     "locations": "node ./bin/locations.js"
   },
