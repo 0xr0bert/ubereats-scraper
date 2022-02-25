@@ -216,10 +216,10 @@ export async function getAndWriteStore(uuid: string, client: PoolClient) {
 
 const pool = new Pool({
   user: "postgres",
-  host: "localhost",
+  host: "db",
   password: "postgres",
   database: "postgres",
-  port: 15432
+  port: 5432
 });
 
 (async () => {

@@ -123,8 +123,8 @@ export async function getAndProcessFeed(location: Location, client: PoolClient) 
 
 const pool = new Pool({
     user: "postgres",
-    host: "localhost",
-    port: 15432,
+    host: "db",
+    port: 5432,
     password: "postgres",
     database: "postgres"
 });

@@ -2,7 +2,7 @@ version: '3.9'
 
 services:
   db:
-    image: docker.io/postgres:14.2-alpine
+    build: ./psql
     restart: unless-stopped
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -10,8 +10,10 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_USER: postgres
       POSTGRES_DB: postgres
-    ports:
-      - 15432:5432
+  scraper:
+    build: .
+    stdin_open: true
+    tty: true
 
 volumes:
   postgres-data:
