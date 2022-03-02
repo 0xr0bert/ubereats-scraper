@@ -29,7 +29,8 @@ export async function getStore(uuid: string): Promise<Root> {
         "content-type": "application/json",
         "accept": "application/json",
         "User-Agent": "Mozilla/5.0 (Android 4.4; Tablet; rv:41.0) Gecko/41.0 Firefox/41.0"
-      }
+      },
+      timeout: 10000
     }
   )
 
@@ -210,7 +211,17 @@ export async function writeStore(data: Data, client: PoolClient) {
 export async function getAndWriteStore(uuid: string, client: PoolClient) {
   const data = await getStoreW(uuid);
   if (data.status === "success" && data.data !== undefined) {
+    console.log({
+      response: data.status,
+      uuid: uuid
+    })
     await writeStore(data.data, client);
+  } else {
+    console.error({
+      response: data,
+      uuid: uuid
+    });
+    client.release();
   }
 }
 
