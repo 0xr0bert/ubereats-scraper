@@ -1,6 +1,6 @@
 {
   "name": "ue-scraper.ts",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Uber Eats Scraper",
   "main": "index.js",
   "repository": "ssh://git@gitea.robgreener.com:222/ragreener1/ue-scraper.ts.git",

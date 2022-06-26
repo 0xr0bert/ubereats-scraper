@@ -180,7 +180,8 @@ export async function writeStore(data: Data, client: PoolClient) {
               item.isSoldOut,
               item.hasCustomizations,
               item.subsectionUuid,
-              item.isAvailable
+              item.isAvailable,
+              item.priceTagline.accessibilityText,
             ]);
             if (itemsInsertData !== undefined && itemsInsertData?.length > 0) {
               await client.query(format(
@@ -195,7 +196,8 @@ export async function writeStore(data: Data, client: PoolClient) {
                   is_sold_out,
                   has_customizations,
                   subsection_uuid,
-                  is_available
+                  is_available,
+                  price_tagline__accessibility_text,
                 ) VALUES %L ON CONFLICT DO NOTHING`, itemsInsertData
               ));
             }
@@ -377,6 +379,7 @@ export interface CatalogItem {
   imageUrl?: string,
   title?: string,
   itemDescription?: string,
+  priceTagline: PriceTagline,
   price: number,
   spanCount: 1,
   displayType: string,
@@ -384,4 +387,10 @@ export interface CatalogItem {
   hasCustomizations: boolean,
   subsectionUuid: string,
   isAvailable: boolean
+}
+
+export interface PriceTagline {
+  text: string,
+  textFormat: string,
+  accessibilityText: string
 }

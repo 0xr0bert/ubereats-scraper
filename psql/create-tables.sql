@@ -92,6 +92,7 @@ create table if not exists menu_items(
   has_customizations boolean,
   subsection_uuid uuid,
   is_available boolean,
+  price_tagline__accessibility_text text,
   constraint fk_restaurant_id foreign key(restaurant_id) references restaurants(id),
   constraint fk_menu_section_id foreign key(menu_section_id) references menu_sections(id)
 );
