@@ -197,7 +197,7 @@ export async function writeStore(data: Data, client: PoolClient) {
                   has_customizations,
                   subsection_uuid,
                   is_available,
-                  price_tagline__accessibility_text,
+                  price_tagline__accessibility_text
                 ) VALUES %L ON CONFLICT DO NOTHING`, itemsInsertData
               ));
             }
