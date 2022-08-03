@@ -1,0 +1,203 @@
+= Uber Eats Data
+Robert A. Greener <Robert.Greener@lshtm.ac.uk>
+v1.0.0, May 10, 2021
+:toc:
+:sectnums:
+
+[abstract]
+== Abstract
+
+This data was scraped from Uber Eats on the 10th of May 2021.
+The software used to scrape this data is available from https://doi.org/10.5281/zenodo.4748834 upon request.
+
+[[customers]]
+== `customers` table
+
+This table stores potential customers, i.e. the postcodes which were scraped.
+The latitude and longitude were obtained from a public API based upon the postcode.
+
+=== Fields
+
+*  [#postcode]#`postcode`# -- Type: `TEXT PRIMARY KEY` -- This is a postcode area which was scraped.
+* `latitude` -- Type: `REAL NOT NULL` -- This is the latitude of the postcode.
+* `longitude` -- Type: `REAL NOT NULL` -- This is the longitude of the postcode.
+
+=== Example data
+
+* `postcode` -- NW1
+* `latitude` -- 51.536639
+* `longitude` -- -0.146813
+
+[[restaurants]]
+== `restaurants` table
+
+This table stores restaurants from Uber Eats.
+
+=== Fields
+
+* [#restid]#`id`# -- Type: `TEXT PRIMARY KEY` -- This is the UUID of the restaurant.
+* `name` -- Type: `TEXT NOT NULL` -- This is the name of the restaurant.
+* `url` -- Type: `TEXT NOT NULL` -- This is the URL of the restaurant.
+* `address__street` -- Type: `TEXT NOT NULL` -- This is the first line of the address of the restaurant.
+* `address__locality` -- Type: `TEXT` -- This is the city of the restaurant.
+* `address__region` -- Type: `Text NOT NULL` -- This is the constituent country of the United Kingdom which the restaurant is in.
+* `address__country` -- Type: `TEXT NOT NULL` -- This is the country of the restaurant.
+* `address__postcode` -- Type: `TEXT NOT NULL` -- This is the postcode of the restaurant.
+* `latitude` -- Type: `REAL NOT NULL` -- This is the latitude of the restaurant.
+* `longitude` -- Type: `REAL NOT NULL` -- This is the longitude of the restaurant.
+* `telephone` -- Type `TEXT` -- This is the phone number of the restaurant.
+* `rating_value` -- Type `REAL` -- This is the average rating of the restaurant.
+* `review_count` -- Type `TEXT` -- This is the number of reviews (over 500 is written as "500+").
+* `price_range` -- Type `TEXT` -- This is the categorical price range the restaurant falls in (as decided by Uber Eats).
+* `delivery_available` -- Type `BOOLEAN NOT NULL` -- This is t if delivery is available, f otherwise.
+* `collection_available` -- Type `BOOLEAN NOT NULL` -- This is t if collection is available, f otherwise.
+* `is_delivery_bandwagon` -- Type `BOOLEAN NOT NULL` -- This is t if delivery is 'bandwagon', f otherwise. It is unclear what this is; it is included as metadata on the restaurant's page.
+* `is_delivery_over_the_top` -- Type `BOOLEAN NOT NULL` -- This is t if delivery is 'over the top', f otherwise. It is unclear what this is; it is included as metadata on the restaurant's page.
+* `is_delivery_third_party` -- Type `BOOLEAN NOT NULL` -- This is t if delivery is third party, f otherwise. This is included as metadata on the restaurant's page. It's probably safe to assume that if this is t then a restaurant provides their own delivery, as opposed to using Uber Eats' drivers.
+
+=== Example data
+
+* `id` -- 95d54fd7-7c46-44dd-8d07-f3c1b3d51bd1
+* `name` -- Starbucks (Hartlepool - Teesbay Retail Park DT)
+* `url` -- https://www.ubereats.com/en-GB/newcastle-uk/food-delivery/starbucks-hartlepool-teesbay-retail-park-dt/ldVP13xGRN2NB_PBs9Ub0Q
+* `address__street` -- Teesbay Retail Park
+* `address__locality` -- Hartlepool
+* `address__region` -- NULL
+* `address__country` -- GB
+* `address__postcode` -- TS25 1XJ
+* `latitude` -- 54.66592
+* `longitude` -- -1.20928
+* `telephone` -- +441429890388
+* `rating_value` -- 4.7
+* `review_count` -- 23
+* `price_range` -- £
+* `delivery_available` -- t
+* `collection_available` -- f
+* `is_delivery_bandwagon` -- f
+* `is_delivery_over_the_top` -- f
+* `is_delivery_third_party` -- f
+
+== `customers_to_restaurants` table
+
+This table stores the many-to-many relationship between the <<customers,`customers`>> table and the <<restaurants,`restaurants`>> table. The semantics of an entry here are that a given customers can purchase from a given restaurant. Not all customers will have entries in this table; this means that Uber Eats was not available at their postcode.
+
+=== Fields
+
+* `customer_id` -- Type: `TEXT FOREIGN KEY REFERENCES customer (postcode) NOT NULL` -- This references <<postcode,`postcode`>> of the <<customers,`customers`>> table. i.e., the customers table should be merged with this one on this field.
+* `restaurant_id` -- Type: `TEXT FOREIGN KEY REFERENCES restaurants (id) NOT NULL` -- This references <<restid,`id`>> of the <<restaurants,`restaurants`>> table. i.e., the restaurants table should be merged with this one on this field.
+
+In this table `customer_id` and `restaurant_id` form a multi-column primary key. i.e., together they uniquely identify an entry.
+
+=== Example data
+
+* `customer_id` -- YO23
+* `restaurant_id` -- 6d9e8a36-b72f-4f6f-a405-c90f63483577
+
+[[menucategories]]
+== `menu_categories` table
+
+This table stores the different menu categories of a restaurant's page. An important difference here compared to Just Eat and Deliveroo is that a product may appear in multiple categories, e.g., Popular and Dessert.
+
+=== Fields
+
+* [#mencatid]#`id`# -- Type: `TEXT PRIMARY KEY` -- This is the UUID of the menu category.
+* `name` -- Type: `TEXT NOT NULL` -- This is the name of the menu category.
+* `subtitle` -- Type: `TEXT` -- This is deprecated and is always NULL.
+* `restaurant_id` -- Type `TEXT FOREIGN KEY REFERENCES restaurants (id) NOT NULL` -- This references <<restid,`id`>> of the <<restaurants,`restaurants`>> table; i.e., the `restaurants` table should be merged with this one on this field.
+
+=== Example data
+
+* `id` -- a87396d9-ebbf-4171-afe3-7d94b1134a60
+* `name` -- Peri Peri Chicken
+* `subtitle` -- NULL
+* `restaurant_id` -- 53b2d982-6236-4d9a-a18d-2f797e0fc19
+
+[[items]]
+== `items` table
+
+This table stores the different products which are available on Uber Eats.
+
+=== Fields
+
+* [#itemid]#`id`# -- Type: `TEXT PRIMARY KEY` -- This is the UUID of the idem.
+* `restaurant_id` -- Type: `TEXT FOREIGN KEY REFERENCES restaurants (id) NOT NULL` -- This references <<restid,`id`>> of the <<restaurants,`restaurants`>> table; i.e., the `restaurants` table should be merged with this one on this field.
+* `name` -- Type: `TEXT NOT NULL` -- This is the name of the item.
+* `price` -- Type: `MONEY NOT NULL` -- This is the price of the item in GBP.
+* `description` -- Type: `TEXT` -- This is the description of the item.
+* `image_url` -- Type: `TEXT` -- This is the URL of an image of the product.
+
+=== Example data
+
+* `id` -- 346baa53-bdd3-4231-a4c6-dbe3c4f24254
+* `restaurant_id` -- 1073648e-e706-4e2f-b2e0-572196c8a677
+* `name` -- Spinach Super-Fuel
+* `price` -- £4.50
+* `description` -- Spinach, kale, and pineapple.
+* `image_url` -- NULL
+
+== `items_to_menu_categories` table
+
+This table stores the many-to-many relationship between items and menu categories. Also in this table is the restaurant ID for ease-of-use.
+
+=== Fields
+
+* `item_id` -- Type: `TEXT FOREIGN KEY REFERENCES items (id) NOT NULL` -- This references <<itemid,`id`>> of the <<items,`items`>> table; i.e., the `items` table should be merged with this one on this field.
+* `restaurant_id` -- Type: `TEXT FOREIGN KEY REFERENCES restaurant (id) NOT NULL` -- This references <<restid,`id`>> of the <<restaurants,`restaurants`>> table; i.e., the `restaurants` table should be merged with this one on this field.
+* `menu_category_id` -- Type: `TEXT FOREIGN KEY REFERENCES menu_category_id (id) NOT NULL` -- This references <<mencatid,`id`>> of the <<menucategories,`menu_categories`>> table; i.e., the `menu_categories` table should be merged with this one on this field.
+
+The fields: `item_id`, `restaurant_id`, and `menu_category_id` form a multi-column primary key; i.e., together they uniquely identify an entry in this table.
+
+=== Example data
+
+* `item_id` -- a60c05b9-2286-402b-bc48-505c27baec00
+* `restaurant_id` -- 1c522a07-21e5-4dd8-a66c-268f7f4b1942
+* `menu_category_id` -- 67354052-8331-4fda-9ff1-0f7a09a47713
+
+== `restaurant_opening_hours table`
+
+This table stores the opening hours of restaurants.
+
+=== Fields
+
+* `id` -- Type: `INTEGER PRIMARY KEY` -- This is the ID of an entry in this table. It is not likely to be of interest.
+* `day` -- Type: `TEXT NOT NULL` -- This is the day of the week.
+* `opening_time` -- Type: `TIME NOT NULL` -- This is the opening time of the restaurant, in the format "HH:MM:SS".
+* `closing_time` -- Type: `TIME NOT NULL` -- This is the closing time of the restaurant, in the format "HH:MM:SS".
+* `restaurant_id` -- Type: `TEXT FOREIGN KEY REFERENCES restaurants (id) NOT NULL` -- This references <<restid,`id`>> of the <<restaurants,`restaurants`>> table; i.e., the `restaurants` table should be merged with this one on this field.
+
+=== Example data
+
+* `id` -- 100276
+* `day` -- Monday
+* `opening_time` -- 10:30:00
+* `closing_time` -- 22:00:00
+* `restaurant_id` -- 423ff5cd-8287-47d4-a681-cdb9b21fb23
+
+[[cuisines]]
+== `cuisines` table
+
+This table stores the different cuisines available on Uber Eats (as specified by them).
+
+=== Fields
+
+* [#cuisineid]#`name`# -- Type: `TEXT PRIMARY KEY` -- This is the name of the cuisine.
+
+=== Example data
+
+* `name` -- Jamaican
+
+== `cuisines_to_restaurants` table
+
+This table stores the many-to-many relationship between <<cuisines,`cuisines`>> and <<restaurants,`restaurants`>>. The semantics of an entry here are that a given restaurant has been listed as serving a given cuisine. There is no benefit here to merging with the <<cuisines,`cuisines`>> table.
+
+=== Fields
+
+* `cuisine_id` -- Type: `TEXT FOREIGN KEY REFERENCES cuisines (name) NOT NULL` -- This references <<cuisineid,`name`>> of the <<cuisines,`cuisines`>> table; i.e., the `cuisines` table should be merged with this one on this field (though there is little benefit in doing so).
+* `restaurant_id` -- Type: `TEXT FOREIGN KEY REFERENCES restaurants (id) NOT NULL` -- This references <<restid,`id`>> of the <<restaurants,`restaurants`>> table; i.e., the `restaurants` table should be merged with this one on this field.
+
+The fields, `cuisine_id` and `restaurant_id`, form a multi-column primary key; i.e., together they uniquely identify an entry in this table.
+
+=== Example data
+
+* `cuisine_id` -- American
+* `restaurant_id` -- 24f80f6d-c123-4f61-a92a-7f8863d6383b
