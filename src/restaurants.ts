@@ -129,7 +129,7 @@ export async function writeStore(data: Data, client: PoolClient) {
             }
           );
           await Promise.all(promises);
-        };
+        }
       });
 
       await Promise.all(promises);
@@ -211,28 +211,37 @@ export async function writeStore(data: Data, client: PoolClient) {
 }
 
 export async function getAndWriteStore(uuid: string, client: PoolClient) {
-  const data = await getStoreW(uuid);
-  if (data.status === "success" && data.data !== undefined) {
-    console.log({
-      response: data.status,
+  try {
+    const data = await getStoreW(uuid);
+    if (data.status === "success" && data.data !== undefined) {
+      console.log({
+        response: data.status,
+        uuid: uuid
+      })
+      await writeStore(data.data, client);
+    } else {
+      console.error({
+        response: data,
+        uuid: uuid
+      });
+      client.release();
+    }
+  } catch (e) {
+    console.error({
+      error: e,
       uuid: uuid
     })
-    await writeStore(data.data, client);
-  } else {
-    console.error({
-      response: data,
-      uuid: uuid
-    });
-    client.release();
+    client.release()
+
   }
 }
 
 const pool = new Pool({
   user: "postgres",
-  host: "db",
+  host: "localhost",
   password: "postgres",
   database: "postgres",
-  port: 5432
+  port: 5433
 });
 
 (async () => {

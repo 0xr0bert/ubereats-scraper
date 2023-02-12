@@ -1,8 +1,8 @@
 import axios from 'axios'
 import Bottleneck from 'bottleneck';
-import { Pool, PoolClient } from 'pg';
+import {Pool, PoolClient} from 'pg';
 import format from 'pg-format';
-import { GET_FEED_V1_URL, MAX_CONCURRENT, MIN_TIME } from './config';
+import {GET_FEED_V1_URL, MAX_CONCURRENT, MIN_TIME} from './config';
 
 export interface Location {
     id: string;
@@ -32,21 +32,34 @@ export async function getFeed(location: Location, offset: number) {
     const locStr = JSON.stringify(loc);
     const cookieStr = `uev2.loc=${locStr}`;
 
-    const res = await axios.post(
-        GET_FEED_V1_URL,
-        data,
-        {
-            headers: {
-                cookie: cookieStr,
-                "x-csrf-token": "x",
-                "content-type": "application/json",
-                "accept": "application/json",
-                "User-Agent": "Mozilla/5.0 (Android 4.4; Tablet; rv:41.0) Gecko/41.0 Firefox/41.0"
-            }
-        }
-    )
+    try {
+        const res = await axios.post(
+            GET_FEED_V1_URL,
+            data,
+            {
+                headers: {
+                    cookie: cookieStr,
+                    "x-csrf-token": "x",
+                    "content-type": "application/json",
+                    "accept": "application/json",
+                    "User-Agent": "Mozilla/5.0 (Android 4.4; Tablet; rv:41.0) Gecko/41.0 Firefox/41.0"
+                }
+            })
+        return res.data
 
-    return res.data;
+    } catch (error: any) {
+        if (error.response) {
+            console.log(error.response.data)
+            console.log(error.response.status)
+            console.log(error.response.headers)
+        } else if (error.request) {
+            console.log(error.request)
+        } else {
+            console.log('Error', error.message)
+        }
+        console.log(error.config)
+        return null
+    }
 }
 
 export async function getFeeds(location: Location): Promise<Array<Data>> {
@@ -57,12 +70,14 @@ export async function getFeeds(location: Location): Promise<Array<Data>> {
 
     while (status == "success" && hasMore) {
         const resp = await getFeedW(location, offset);
-        status = resp.status;
-        if (status == "success") {
-            const data = resp.data as Data;
-            hasMore = data.meta.hasMore;
-            offset = data.meta.offset;
-            datas.push(data);
+        if (resp != null) {
+            status = resp.status;
+            if (status == "success") {
+                const data = resp.data as Data;
+                hasMore = data.meta.hasMore;
+                offset = data.meta.offset;
+                datas.push(data);
+            }
         }
     }
 
@@ -123,8 +138,8 @@ export async function getAndProcessFeed(location: Location, client: PoolClient) 
 
 const pool = new Pool({
     user: "postgres",
-    host: "db",
-    port: 5432,
+    host: "localhost",
+    port: 5433,
     password: "postgres",
     database: "postgres"
 });
