@@ -6,6 +6,18 @@ import format from "pg-format";
 import Bottleneck from "bottleneck";
 
 
+// This really shouldn't be needed, seems like a hopefully temporary bug on UE's end.
+// You need to install fiddler classic (windows only) and enable https decryption.
+import proxy from "node-global-proxy";
+proxy.setConfig({
+    http: "http://localhost:8888",
+    https: "http://localhost:8888",
+  });
+proxy.start();
+process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
+  
+
+
 const limiter = new Bottleneck({
   minTime: MIN_TIME,
   maxConcurrent: MAX_CONCURRENT
@@ -15,6 +27,8 @@ const getStoreW = limiter.wrap(getStore)
 /**
  * Gets the store
  */
+
+const cookieStr = `jwt-session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7Il9fand0X3JwY19wcm90ZWN0aW9uX2V4cGlyZXNfYXRfbXMiOjE3MDI0Njg2NTA5NzQsIl9fand0X3JwY19wcm90ZWN0aW9uX3V1aWQiOiI1ZWVjYjc0Ny04ZThjLTQ1YTEtYWEzNi0yYTQ3MjhkZTU4ZTMiLCJfX2p3dF9ycGNfcHJvdGVjdGlvbl9jcmVhdGVkX2F0X21zIjoxNzAyMzgxNzY4NzMxfSwiaWF0IjoxNzAyMzgxNzY4LCJleHAiOjE3MDI0NjgxNjh9.HttFiJUxrGA7e1BoTRa8yUl_PZfRDt0TMlK3q1kP0uA`;
 export async function getStore(uuid: string): Promise<Root> {
   const data = {
     "storeUuid": uuid,
@@ -28,7 +42,8 @@ export async function getStore(uuid: string): Promise<Root> {
         "x-csrf-token": "x",
         "content-type": "application/json",
         "accept": "application/json",
-        "User-Agent": "Mozilla/5.0 (Android 4.4; Tablet; rv:41.0) Gecko/41.0 Firefox/41.0"
+        "User-Agent": "Mozilla/5.0 (Android 4.4; Tablet; rv:41.0) Gecko/41.0 Firefox/41.0",
+        "cookie": cookieStr
       },
       timeout: 10000
     }
@@ -240,8 +255,8 @@ const pool = new Pool({
   user: "postgres",
   host: "localhost",
   password: "postgres",
-  database: "postgres",
-  port: 5433
+  database: "ue",
+  port: 5432
 });
 
 (async () => {

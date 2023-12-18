@@ -4,6 +4,17 @@ import {Pool, PoolClient} from 'pg';
 import format from 'pg-format';
 import {GET_FEED_V1_URL, MAX_CONCURRENT, MIN_TIME} from './config';
 
+// This really shouldn't be needed, seems like a hopefully temporary bug on UE's end.
+// You need to install fiddler classic (windows only) and enable https decryption.
+import proxy from "node-global-proxy";
+proxy.setConfig({
+    http: "http://localhost:8888",
+    https: "http://localhost:8888",
+  });
+proxy.start();
+process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0";
+  
+
 export interface Location {
     id: string;
     longitude: number;
@@ -29,8 +40,8 @@ export async function getFeed(location: Location, offset: number) {
         longitude: location.longitude
     };
 
-    const locStr = JSON.stringify(loc);
-    const cookieStr = `uev2.loc=${locStr}`;
+    const locStr = encodeURIComponent(JSON.stringify(loc));
+    const cookieStr = `uev2.loc=${locStr}; ; jwt-session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7Il9fand0X3JwY19wcm90ZWN0aW9uX2V4cGlyZXNfYXRfbXMiOjE3MDIyMjQyODA2NzQsIl9fand0X3JwY19wcm90ZWN0aW9uX3V1aWQiOiJiZjJmODYzOS0zNGIzLTQwOWQtYWE4ZC0wODIxZmY2ZWRmYmIiLCJfX2p3dF9ycGNfcHJvdGVjdGlvbl9jcmVhdGVkX2F0X21zIjoxNzAyMTM3OTU4MzUzfSwiaWF0IjoxNzAyMTM3OTU4LCJleHAiOjE3MDIyMjQzNTh9.rux2cAYyvrn_sWR58ziXfpgALRmvrwASudUl4U9JMUA`;
 
     try {
         const res = await axios.post(
@@ -42,7 +53,7 @@ export async function getFeed(location: Location, offset: number) {
                     "x-csrf-token": "x",
                     "content-type": "application/json",
                     "accept": "application/json",
-                    "User-Agent": "Mozilla/5.0 (Android 4.4; Tablet; rv:41.0) Gecko/41.0 Firefox/41.0"
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36 Edg/119.0.0.0"
                 }
             })
         return res.data
@@ -139,9 +150,9 @@ export async function getAndProcessFeed(location: Location, client: PoolClient) 
 const pool = new Pool({
     user: "postgres",
     host: "localhost",
-    port: 5433,
+    port: 5432,
     password: "postgres",
-    database: "postgres"
+    database: "ue"
 });
 
 (async () => {
