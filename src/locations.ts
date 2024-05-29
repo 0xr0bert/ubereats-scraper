@@ -41,7 +41,7 @@ export async function getFeed(location: Location, offset: number) {
     };
 
     const locStr = encodeURIComponent(JSON.stringify(loc));
-    const cookieStr = `uev2.loc=${locStr}; ; jwt-session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7Il9fand0X3JwY19wcm90ZWN0aW9uX2V4cGlyZXNfYXRfbXMiOjE3MDIyMjQyODA2NzQsIl9fand0X3JwY19wcm90ZWN0aW9uX3V1aWQiOiJiZjJmODYzOS0zNGIzLTQwOWQtYWE4ZC0wODIxZmY2ZWRmYmIiLCJfX2p3dF9ycGNfcHJvdGVjdGlvbl9jcmVhdGVkX2F0X21zIjoxNzAyMTM3OTU4MzUzfSwiaWF0IjoxNzAyMTM3OTU4LCJleHAiOjE3MDIyMjQzNTh9.rux2cAYyvrn_sWR58ziXfpgALRmvrwASudUl4U9JMUA`;
+    const cookieStr = `uev2.loc=${locStr}; ; jwt-session=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpYXQiOjE3MTY5MDczMDUsImV4cCI6MTcxNjk5MzcwNX0.LrfqhPacPNc8xnJTmLb6X67CLGOe6xbroH7QuI4Mm6I`;
 
     try {
         const res = await axios.post(
@@ -150,9 +150,9 @@ export async function getAndProcessFeed(location: Location, client: PoolClient) 
 const pool = new Pool({
     user: "postgres",
     host: "localhost",
-    port: 5432,
-    password: "postgres",
-    database: "ue"
+    port: 5433,
+    password: "UBEREATS",
+    database: "postgres"
 });
 
 (async () => {

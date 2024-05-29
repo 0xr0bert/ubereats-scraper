@@ -255,8 +255,8 @@ const pool = new Pool({
   user: "postgres",
   host: "localhost",
   password: "postgres",
-  database: "ue",
-  port: 5432
+  database: "postgres",
+  port: 5433
 });
 
 (async () => {
